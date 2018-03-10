@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyTitle>ServiceBrokerListener.Domain.Core</AssemblyTitle>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>ServiceBrokerListener.Domain.Core</AssemblyName>
+    <PackageId>ServiceBrokerListener.Domain.Core</PackageId>
+    <NetStandardImplicitPackageVersion>2.0.1</NetStandardImplicitPackageVersion>
+    <PackageTargetFallback>$(PackageTargetFallback);dnxcore50</PackageTargetFallback>
+    <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
+    <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
+    <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <LangVersion>7</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\ServiceBrokerListener.Domain\SqlDependencyEx.cs;..\ServiceBrokerListener.Domain\TsqlHelper.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="2.0.0" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.1.0" />
+    <PackageReference Include="System.Threading.Thread" Version="4.0.0" />
+    <PackageReference Include="System.Threading.ThreadPool" Version="4.0.10" />
+    <PackageReference Include="System.Xml.ReaderWriter" Version="4.3.0" />
+  </ItemGroup>
+
+</Project>

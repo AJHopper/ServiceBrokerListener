@@ -6,10 +6,17 @@
     using System.Linq;
     using System.Text;
     using System.Threading;
-
+    using Microsoft.Extensions.Logging.Abstractions;
     using NUnit.Framework;
 
     using ServiceBrokerListener.Domain;
+
+
+    public class TestClass
+    {
+        public string test { get; set; }
+    }
+
 
     /// <summary>
     /// TODO: 
@@ -237,11 +244,11 @@
             bool errorReceived = false;
             try
             {
-                using (SqlDependencyEx test = new SqlDependencyEx(
+                using (SqlDependencyEx<TestClass> test = new SqlDependencyEx<TestClass>(new NullLogger<SqlDependencyEx<TestClass>>(),
                         TEST_CONNECTION_STRING,
                         TEST_DATABASE_NAME,
                         TEST_TABLE_NAME,
-                        "temp")) test.Start();
+                        "temp")) test.Start(true);
             }
             catch (SqlException) { errorReceived = true; }
 
@@ -252,22 +259,22 @@
             errorReceived = false;
             try
             {
-                using (SqlDependencyEx test = new SqlDependencyEx(
+                using (SqlDependencyEx<TestClass> test = new SqlDependencyEx<TestClass>(new NullLogger<SqlDependencyEx<TestClass>>(),
                         TEST_CONNECTION_STRING,
                         TEST_DATABASE_NAME,
                         TEST_TABLE_NAME,
-                        "temp")) test.Start();
+                        "temp")) test.Start(false);
             }
             catch (SqlException) { errorReceived = true; }
 
             Assert.AreEqual(false, errorReceived);
 
             // There is supposed to be no exceptions with admin rights.
-            using (SqlDependencyEx test = new SqlDependencyEx(
+            using (SqlDependencyEx<TestClass> test = new SqlDependencyEx<TestClass>(new NullLogger<SqlDependencyEx<TestClass>>(),
                     MASTER_CONNECTION_STRING,
                     TEST_DATABASE_NAME,
                     TEST_TABLE_NAME,
-                    "temp")) test.Start();
+                    "temp")) test.Start(false);
         }
 
         [Test]
@@ -283,11 +290,11 @@
             bool errorReceived = false;
             try
             {
-                using (SqlDependencyEx test = new SqlDependencyEx(
+                using (SqlDependencyEx<TestClass> test = new SqlDependencyEx<TestClass>(new NullLogger<SqlDependencyEx<TestClass>>(),
                         TEST_CONNECTION_STRING,
                         TEST_DATABASE_NAME,
                         TEST_TABLE_NAME,
-                        "temp")) test.Start();
+                        "temp")) test.Start(false);
             }
             catch (SqlException) { errorReceived = true; }
 
@@ -295,74 +302,6 @@
 
             // Service broker supposed to be configured automatically with MASTER connection string.
             NotificationTest(10, connStr: MASTER_CONNECTION_STRING);
-        }
-
-        [Test]
-        public void GetActiveDbListenersTest()
-        {
-            Func<int> getDbDepCount =
-                () =>
-                SqlDependencyEx.GetDependencyDbIdentities(
-                    TEST_CONNECTION_STRING,
-                    TEST_DATABASE_NAME).Length;
-
-            using (var dep1 = new SqlDependencyEx(TEST_CONNECTION_STRING, TEST_DATABASE_NAME, TEST_TABLE_NAME, "temp"
-                , identity: 4))
-            using(var dep2 = new SqlDependencyEx(TEST_CONNECTION_STRING, TEST_DATABASE_NAME, TEST_TABLE_NAME, "temp"
-                , identity: 5))
-            {
-                dep1.Start();
-                
-                // Make sure db has been got 1 dependency object.
-                Assert.AreEqual(1, getDbDepCount());
-
-                dep2.Start();
-
-                // Make sure db has been got 2 dependency object.
-                Assert.AreEqual(2, getDbDepCount());
-            }
-
-            // Make sure db has no any dependency objects.
-            Assert.AreEqual(0, getDbDepCount());
-        }
-
-        [Test]
-        public void ClearDatabaseTest()
-        {
-            Func<int> getDbDepCount =
-                () =>
-                SqlDependencyEx.GetDependencyDbIdentities(
-                    TEST_CONNECTION_STRING,
-                    TEST_DATABASE_NAME).Length;
-
-            var dep1 = new SqlDependencyEx(
-                TEST_CONNECTION_STRING,
-                TEST_DATABASE_NAME,
-                TEST_TABLE_NAME,
-                "temp",
-                identity: 4);
-            var dep2 = new SqlDependencyEx(
-                TEST_CONNECTION_STRING,
-                TEST_DATABASE_NAME,
-                TEST_TABLE_NAME,
-                "temp",
-                identity: 5);
-
-            dep1.Start();
-            // Make sure db has been got 1 dependency object.
-            Assert.AreEqual(1, getDbDepCount());
-            dep2.Start();
-            // Make sure db has been got 2 dependency object.
-            Assert.AreEqual(2, getDbDepCount());
-
-            // Forced db cleaning
-            SqlDependencyEx.CleanDatabase(TEST_CONNECTION_STRING, TEST_DATABASE_NAME);
-
-            // Make sure db has no any dependency objects.
-            Assert.AreEqual(0, getDbDepCount());
-
-            dep1.Dispose();
-            dep2.Dispose();
         }
 
         [Test]
@@ -378,25 +317,25 @@
             int table2TotalNotifications = 0;
             int table2TotalInserted = 0;
 
-            using (var sqlDependencyFirstTable = new SqlDependencyEx(
+            using (var sqlDependencyFirstTable = new SqlDependencyEx<TestClass>(new NullLogger<SqlDependencyEx<TestClass>>(),
                            TEST_CONNECTION_STRING,
                            "TestDatabase",
                            "TestTable",
                            "temp",
-                           SqlDependencyEx.NotificationTypes.Delete,
+                           NotificationTypes.Delete,
                            true,
                            0))
             {
 
-                sqlDependencyFirstTable.TableChanged += (sender, args) =>
+                sqlDependencyFirstTable.TableChanged += async (sender, args) =>
                 {
-                    if (args.NotificationType == SqlDependencyEx.NotificationTypes.Delete)
+                    if (args.NotificationType == NotificationTypes.Delete)
                     {
                         table1DeletesReceived++;
-                        table1TotalDeleted += args.Data.Element("deleted").Elements("row").Count();
+                        table1TotalDeleted += args.Data.Deleted == null ? 0 : 1;
                     }
 
-                    if (args.NotificationType == SqlDependencyEx.NotificationTypes.Insert)
+                    if (args.NotificationType == NotificationTypes.Insert)
                     {
                         table1InsertsReceived++;
                     }
@@ -405,36 +344,36 @@
                 };
 
                 if (!sqlDependencyFirstTable.Active)
-                    sqlDependencyFirstTable.Start();
+                    sqlDependencyFirstTable.Start(false);
 
-                using (var sqlDependencySecondTable = new SqlDependencyEx(
+                using (var sqlDependencySecondTable = new SqlDependencyEx<TestClass>(new NullLogger<SqlDependencyEx<TestClass>>(),
                                                    TEST_CONNECTION_STRING,
                                                    "TestDatabase",
                                                    "TestTable",
                                                    "temp2",
-                                                   SqlDependencyEx.NotificationTypes.Insert,
+                                                   NotificationTypes.Insert,
                                                    true,
                                                    1))
                 {
 
-                    sqlDependencySecondTable.TableChanged += (sender, args) =>
+                    sqlDependencySecondTable.TableChanged += async (sender, args) =>
                     {
-                        if (args.NotificationType == SqlDependencyEx.NotificationTypes.Delete)
+                        if (args.NotificationType == NotificationTypes.Delete)
                         {
                             table2DeletesReceived++;
                         }
 
-                        if (args.NotificationType == SqlDependencyEx.NotificationTypes.Insert)
+                        if (args.NotificationType ==NotificationTypes.Insert)
                         {
                             table2InsertsReceived++;
-                            table2TotalInserted += args.Data.Element("inserted").Elements("row").Count();
+                            table2TotalInserted += args.Data.Inserted == null ? 0 : 1;
                         }
 
                         table2TotalNotifications++;
                     };
 
                     if (!sqlDependencySecondTable.Active)
-                        sqlDependencySecondTable.Start();
+                        sqlDependencySecondTable.Start(false);
 
                     MakeChunkedInsert(5, TEST_TABLE_1_FULL_NAME);
                     MakeChunkedInsert(3, TEST_TABLE_2_FULL_NAME);
