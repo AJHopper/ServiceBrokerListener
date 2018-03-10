@@ -726,7 +726,7 @@ namespace ServiceBrokerListener.Domain
 
         public void Dispose()
         {
-            //Stop(); Would usually call stop however we dont want to uninstall from database on app close
+            Stop();
 
             //code below emulated a stop without a remove from database
             lock (ActiveEntities)
