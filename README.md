@@ -29,15 +29,49 @@ When creating a class to pass to, there a couple of things to note:
 	```
 		[Table("ORD_DETAIL2")]
         [Column("SYSTEM_USER")]
-        [IsSystem(true)]
+        [IsSystem]
         public string SYSTEM_USER3 { get; set; }
 		
 		[Table("SOP_CANCELLATION_LINK")]
         [Column("SCL_ORDER_DETAIL_LINK")]
         public int? CancelId { get; set; }
 	```
+	
+4. Batch Message set up
+
+The system also supports the concept of Batch Messaging - this is a special type of handler that runs a stored procedure to check for updates on table, and if conditions are met create a message encompassing the list of all related objects - an example can be seen below
+
+	```
+	[ExcludeFromSelect]
+        [SqlStuff]
+        [DeleteOn]
+        public int Id { get; set; }
+
+        [IsSystem]
+        [Column("MAX(RunAt)")]
+        [ExcludeFromSelect]
+        public string RunAt { get; set; }
+
+        [GroupBy]
+        public int JobType { get; set; }
+
+        [GroupBy]
+        [ExcludeFromSelect]
+        public Type ObjectType { get; set; }
+
+        [GroupBy]
+        [ExcludeFromSelect]
+        public string BatchGroup { get; set; }
+
+        [SqlStuff]
+        public string Data { get; set; }
+	```
+Within this example we are using a separate table solely for batch messaging - as regular messages come in we insert into this batch table to then later group them together.
+Above we make use of the "Max(RunAt)" which will determine when the stored procedure processes the batch, the "BatchGroup" to group all related messages together along with the "Id" field to delete the processed messages once they have been handled.
+
+Batch messaging is a way for you to (as an example) have a message come in for each line on an order, put them into a table to wait until all processes impacting lines on the order are complete, and then send an single update with data from all lines that were impacted.
     
-4. Settng up and using the class
+5. Settng up and using the class
 
 The intial set up is done using generics to allow for the program to work with any class, the reasons for requiring this is to allow the class to return you the Inserted and Deleted as objects as opposed to as XML, keeping any parsing that may need to be done internally wrapped SqlDependencyEx class
     ```
@@ -66,7 +100,7 @@ Setting up the rest is fairly easy, adding an on table changed event in async an
     listener.Stop();
     ```
 	
-5. The FilterHelper class:
+6. The FilterHelper class:
 
 The FilterHelper class is a small class with two functions in it, the primary aim is to allow for a little more customisation when filtering.
 
@@ -77,7 +111,7 @@ FilterHelpers.Is(NotificationTypes type, object property, object value)
 ```
 
 	
-6. Enjoy!
+7. Enjoy!
 
 # How to use for multiple tables
 
